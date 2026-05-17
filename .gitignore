@@ -1,0 +1,6 @@
+*.ppm
+*.txt
+core.*
+*.save*
+ompconv
+hybridconv

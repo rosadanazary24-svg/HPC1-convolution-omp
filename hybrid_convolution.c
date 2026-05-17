@@ -17,6 +17,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <omp.h> // Iam including this library because it is a library for OpenMP Parallelization
+#include <mpi.h> // I am including this because it is a library for hybrid parallelization
 // Estructura per emmagatzemar el contingut d'una imatge.
 struct imagenppm{
     int altura;
@@ -304,7 +305,18 @@ int convolve2D(int* in, int* out, int dataSizeX, int dataSizeY,
 //////////////////////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char **argv)
 {
+//MPI variables
+   int rank, size;
     int i=0,j=0,k=0;
+// Initialize MPI environment
+MPI_Init(&argc, &argv);
+
+// Get process rank
+MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+// Get total number of processes
+MPI_Comm_size(MPI_COMM_WORLD, &size);
+printf("Hello from MPI process %d out of %d processes\n", rank, size);
 //    int headstored=0, imagestored=0, stored;
     
     if(argc != 5)
@@ -415,6 +427,25 @@ int main(int argc, char **argv)
         if (readImage(source, &fpsrc, chunksize, halo/2, &position)) {
             return -1;
         }
+// Static MPI row decomposition
+int rows_per_process;
+int start_row, end_row;
+
+// Divide image rows among MPI processes
+rows_per_process = source->altura / size;
+
+// Starting row for this process
+start_row = rank * rows_per_process;
+
+// Last process handles remaining rows
+if(rank == size - 1)
+    end_row = source->altura;
+else
+    end_row = start_row + rows_per_process;
+
+// Display assigned rows
+printf("MPI Process %d handles rows %d to %d\n",
+       rank, start_row, end_row);
         gettimeofday(&tim, NULL);
         tread = tread + (tim.tv_sec+(tim.tv_usec/1000000.0) - start);
         
@@ -484,6 +515,7 @@ int main(int argc, char **argv)
     
     freeImagestructure(&source);
     freeImagestructure(&output);
-    
+    // Finalize MPI environment
+MPI_Finalize();
     return 0;
 }
